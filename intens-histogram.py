@@ -1,5 +1,5 @@
 import cv2
-import numpy
+import numpy as np
 import math
 import matplotlib.pyplot as plt
 import pickle
@@ -15,9 +15,23 @@ widgets = [' [', progressbar.Timer(format= 'elapsed time: %(elapsed)s'), '] ',
           ]
 
 #------------------------------------------------------------------------
+#                               Get Frequency 
+#-------------------------------------------------------------------------
+def freq(img, channel=0):
+    freq = {}
+    row,col,_ = img.shape
+
+    for i in range(row):
+        for j in range(col):
+            color = int(img[i][j][channel])
+            if color in freq:
+                freq[color] += 1
+            else:
+                freq[color]= 1
+    return freq
+#------------------------------------------------------------------------
 #                       Convert RGB to Gray-Scale 
 #-------------------------------------------------------------------------
-
 #read rgb image
 def gray_conversion(img):
     gray_scale = img.copy()
@@ -71,36 +85,20 @@ def compute_pr_density(img, intensity_vals):
 #                       Compute Cumulative Distribution  
 #-------------------------------------------------------------------------
 
-def compute_cumulative_dis(img,prk):
-    sum, s, = 0, {}
-    tones = len(prk)-1
-    print("tones",tones)
-    row,col,_ = img.shape
-    colors = list(prk.keys())
-    print(colors)
-    MN = row*col
-
-    """ prk -> color:freq 
-        s   -> color:freq
-    """
-
-    for k in prk:
-        sum += prk[k]
-        if(sum*255 - int(sum*255)>=.5):
-            print(sum, '*', 255 , '=', sum*255, '->' ,math.ceil(sum*255),'\n')
-            if math.ceil(sum*255) in s:
-                s[math.ceil(sum*255)]+=1
-            else:
-                s[math.ceil(sum*255)]=1         
-
-
-        else:
-            print(sum, '*', 255 , '=', sum*255, '->' ,int(sum*255),'\n')
-            if int(sum*255) in s:
-                s[int(sum*255)]+=1
-            else:
-                s[int(sum*255)]=1 
-    return s
+def compute_cumulative_dis(arr, depth=255):
+    vals, pdf = np.unique(arr, return_counts=True)
+    # print('\n\n','pdf:',pdf)
+    cdf = np.cumsum(pdf)
+    # print('\n\n','cdf:',cdf)
+    min_cdf = min(cdf)
+    # print('\n\n','min_cdf',min_cdf, type(cdf))
+    new_vals = (
+        np.round((cdf - min_cdf) / (arr.size - min_cdf) * (depth - 1))
+        .astype(int))
+    result = np.empty_like(arr)
+    for i, val in enumerate(vals):
+        result[np.nonzero(arr == val)] = new_vals[i]
+    return result
 
 #-------------------------------------------------------------------------
 #                               Plot Histogram 
@@ -108,7 +106,8 @@ def compute_cumulative_dis(img,prk):
 
 # Plot RGB Original Histogram 
 def plot_histogram(r_prk, g_prk, b_prk,gr_prk,gr_s):
-    x,y = list(gr_s.keys()),list(gr_s.values())
+    f = freq(gr_s)
+    x,y = list(f.keys()),list(f.values())
 
     # #get index of prk
     # for i in range(len(r_prk)):
@@ -151,7 +150,6 @@ def plot_histogram(r_prk, g_prk, b_prk,gr_prk,gr_s):
     #gray enhanced
     plt.subplot(133)
     plt.bar(x,y,color='k' )
-    print(gr_s)
     plt.xlabel('Color Inensity')
     plt.ylabel('Frequency')
     plt.title('Gray Enhanced')
@@ -215,29 +213,23 @@ if __name__ == "__main__":
     gr_intensity = read_intensity_values(gray)
 
     #compute prk (probability density )
-    #FIX THE FREQUENCIES 
     b_prk = compute_pr_density(rgb,b_intensity)
     g_prk = compute_pr_density(rgb,g_intensity)
     r_prk = compute_pr_density(rgb,r_intensity)
     gr_prk = compute_pr_density(gray,gr_intensity)
 
     #compute s val (cumulative distribution)
-    # b_s = compute_cumulative_dis(b_prk)
-    # g_s = compute_cumulative_dis(g_prk)
-    # r_s = compute_cumulative_dis(r_prk)
-    gr_s = compute_cumulative_dis(gray,gr_prk)
+    gr_s = compute_cumulative_dis(gray)
 
     #plot histogram
     plot_histogram(r_intensity, g_intensity, b_intensity,gr_intensity,gr_s)
 
-    #display histogram equalized image
-    # enhanced_gray = convert_equalized_gray(gray,gr_s)
 
     #display image comparisions 
-    # cv2.imshow("RGB",rgb)
-    # cv2.imshow("Gray",gray)
-    # cv2.imshow("Enhanced Gray Scale", enhanced_gray)
-    # cv2.waitKey(0)
+    cv2.imshow("RGB",rgb)
+    cv2.imshow("Gray",gray)
+    cv2.imshow("Enhanced Gray Scale", gr_s)
+    cv2.waitKey(0)
 
     #dump 
     #dump(gray, enhanced_gray)
