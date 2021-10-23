@@ -71,16 +71,35 @@ def compute_pr_density(img, intensity_vals):
 #                       Compute Cumulative Distribution  
 #-------------------------------------------------------------------------
 
-def compute_cumulative_dis(prk):
-    sum, s, frequencies = 0, {}, []
+def compute_cumulative_dis(img,prk):
+    sum, s, = 0, {}
     tones = len(prk)-1
+    print("tones",tones)
+    row,col,_ = img.shape
+    colors = list(prk.keys())
+    print(colors)
+    MN = row*col
+
+    """ prk -> color:freq 
+        s   -> color:freq
+    """
 
     for k in prk:
-        sum += prk.get(k)
-        if(sum*tones - int(sum*tones)>=.5):
-            s[k]= math.ceil(sum*tones)
+        sum += prk[k]
+        if(sum*255 - int(sum*255)>=.5):
+            print(sum, '*', 255 , '=', sum*255, '->' ,math.ceil(sum*255),'\n')
+            if math.ceil(sum*255) in s:
+                s[math.ceil(sum*255)]+=1
+            else:
+                s[math.ceil(sum*255)]=1         
+
+
         else:
-            s[k]=int(sum*tones)
+            print(sum, '*', 255 , '=', sum*255, '->' ,int(sum*255),'\n')
+            if int(sum*255) in s:
+                s[int(sum*255)]+=1
+            else:
+                s[int(sum*255)]=1 
     return s
 
 #-------------------------------------------------------------------------
@@ -88,8 +107,8 @@ def compute_cumulative_dis(prk):
 #-------------------------------------------------------------------------
 
 # Plot RGB Original Histogram 
-def plot_histogram(r_prk, g_prk, b_prk,gr_prk,):
-    r_x,g_x,b_x,gr_x = [],[],[],[]
+def plot_histogram(r_prk, g_prk, b_prk,gr_prk,gr_s):
+    x,y = list(gr_s.keys()),list(gr_s.values())
 
     # #get index of prk
     # for i in range(len(r_prk)):
@@ -102,32 +121,40 @@ def plot_histogram(r_prk, g_prk, b_prk,gr_prk,):
     #     gr_x.append(i)
 
     #red
-    plt.subplot(141)
-    plt.bar(r_prk.keys(),r_prk.values(),color='r')
+    plt.subplot(131)
+    plt.bar(r_prk.keys(),r_prk.values(),color='r',alpha=.5)
     plt.xlabel('rk')
     plt.ylabel('Probability(rk)')
     plt.title('Red')
 
     #green
-    plt.subplot(142)
-    plt.bar(g_prk.keys(),g_prk.values(),color='g' )
+    plt.subplot(131)
+    plt.bar(g_prk.keys(),g_prk.values(),color='g',alpha=.5 )
     plt.xlabel('rk')
     plt.ylabel('Probability(rk)')
     plt.title('Green')
 
     #blue
-    plt.subplot(143)
-    plt.bar(b_prk.keys(),b_prk.values(),color='b' )
-    plt.xlabel('rk')
-    plt.ylabel('Probability(rk)')
-    plt.title('Blue')
+    plt.subplot(131)
+    plt.bar(b_prk.keys(),b_prk.values(),color='b',alpha=.5 )
+    plt.xlabel('Color Intensity')
+    plt.ylabel('Frequency')
+    plt.title('RGB')
 
     #gray
-    plt.subplot(144)
-    plt.bar(gr_prk.keys(),gr_prk.values(),color='k' )
-    plt.xlabel('rk')
-    plt.ylabel('Probability(rk)')
+    plt.subplot(132)
+    plt.bar(gr_prk.keys(),gr_prk.values(),color='gray' )
+    plt.xlabel('Color intensity')
+    plt.ylabel('Frequency')
     plt.title('Gray')
+
+    #gray enhanced
+    plt.subplot(133)
+    plt.bar(x,y,color='k' )
+    print(gr_s)
+    plt.xlabel('Color Inensity')
+    plt.ylabel('Frequency')
+    plt.title('Gray Enhanced')
 
     #show plots
     plt.tight_layout()
@@ -152,10 +179,8 @@ def convert_equalized_gray(gray,s):
     for i in range(row):
         g_bar.update(i)
         for j in range(col):
-            for k in s:
-                if int(k) == int(gray[i][j][0]):
-                    enhanced_gray[i][j] = colors[s[k]]
-                    break
+            #figure out how to map s val 
+            return
     return enhanced_gray
 
 #-------------------------------------------------------------------------
@@ -175,8 +200,8 @@ def dump(img, newimg):
 
 if __name__ == "__main__":
     #read img
-    # rgb = cv2.imread("html/img/Image-1.bmp")
-    rgb = cv2.imread("html/img/bright.jpg") 
+    rgb = cv2.imread("html/img/Image-1.bmp")
+    # rgb = cv2.imread("html/img/bright.jpg") 
     # rgb = cv2.imread("html/img/dark.jpg")
     gray = rgb.copy()
 
@@ -200,19 +225,19 @@ if __name__ == "__main__":
     # b_s = compute_cumulative_dis(b_prk)
     # g_s = compute_cumulative_dis(g_prk)
     # r_s = compute_cumulative_dis(r_prk)
-    gr_s = compute_cumulative_dis(gr_prk)
+    gr_s = compute_cumulative_dis(gray,gr_prk)
 
     #plot histogram
-    plot_histogram(r_intensity, g_intensity, b_intensity,gr_s)
+    plot_histogram(r_intensity, g_intensity, b_intensity,gr_intensity,gr_s)
 
     #display histogram equalized image
-    enhanced_gray = convert_equalized_gray(gray,gr_s)
+    # enhanced_gray = convert_equalized_gray(gray,gr_s)
 
     #display image comparisions 
-    cv2.imshow("RGB",rgb)
-    cv2.imshow("Gray",gray)
-    cv2.imshow("Enhanced Gray Scale", enhanced_gray)
-    cv2.waitKey(0)
+    # cv2.imshow("RGB",rgb)
+    # cv2.imshow("Gray",gray)
+    # cv2.imshow("Enhanced Gray Scale", enhanced_gray)
+    # cv2.waitKey(0)
 
     #dump 
     #dump(gray, enhanced_gray)
